@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Форма обратной связи</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+    <h1>Форма обратной связи</h1>
+
+    <button class="btn" id="openModalBtn">Открыть форму</button>
+</div>
+
+<div class="modal" id="feedbackModal">
+    <div class="modal-content">
+        <span class="close-btn" id="closeModalBtn">&times;</span>
+        <h2>Форма обратной связи</h2>
+        <form id="feedbackForm">
+            <div class="form-group">
+                <label for="fullName">ФИО </label>
+                <input type="text" id="fullName" name="fullName" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email </label>
+                <input type="email" id="email" name="email" required>
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Телефон</label>
+                <input type="tel" id="phone" name="phone">
+            </div>
+
+            <div class="form-group required-field">
+                <label for="birthdate">Дата рождения </label>
+                <input type="date" id="birthdate" name="birthdate" required>
+            </div>
+
+            <div class="form-group required-field" id="gender-group">
+                <label>Пол </label>
+                <div class="radio-group">
+                    <input type="radio" id="male" name="gender" value="male" required>
+                    <label for="male">Мужской</label>
+                </div>
+                <div class="radio-group">
+                    <input type="radio" id="female" name="gender" value="female" required>
+                    <label for="female">Женский</label>
+                </div>
+                <div class="gender-error field-error" style="display: none;">Пожалуйста, выберите пол</div>
+            </div>
+
+            <div class="form-group required-field">
+                <label for="languages">Любимый язык программирования (можно выбрать несколько)</label>
+                <select id="languages" name="languages" multiple size="6" required>
+                    <option value="pascal">Pascal</option>
+                    <option value="c">C</option>
+                    <option value="cpp">C++</option>
+                    <option value="javascript">JavaScript</option>
+                    <option value="php">PHP</option>
+                    <option value="python">Python</option>
+                    <option value="java">Java</option>
+                    <option value="haskell">Haskell</option>
+                    <option value="clojure">Clojure</option>
+                    <option value="prolog">Prolog</option>
+                    <option value="scala">Scala</option>
+                    <option value="go">Go</option>
+                </select>
+                <small class="hint">Для выбора нескольких: Ctrl + клик</small>
+            </div>
+
+            <div class="form-group">
+                <label for="message">Биография </label>
+                <textarea id="message" name="message" minlength="4" required></textarea>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="contract" name="contract" required>
+                <label for="contract">С контрактом ознакомлен(а) </label>
+            </div>
+
+            <button type="submit" class="submit-btn">Сохранить</button>
+        </form>
+
+        <div class="message" id="responseMessage"></div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
