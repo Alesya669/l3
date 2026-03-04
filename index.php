@@ -1,80 +1,132 @@
 <?php
-// Отправляем браузеру правильную кодировку,
-// файл index.php должен быть в кодировке UTF-8 без BOM.
 header('Content-Type: text/html; charset=UTF-8');
 
-// В суперглобальном массиве $_SERVER PHP сохраняет некторые заголовки запроса HTTP
-// и другие сведения о клиненте и сервере, например метод текущего запроса $_SERVER['REQUEST_METHOD'].
 if ($_SERVER['REQUEST_METHOD'] == 'GET') {
-  // В суперглобальном массиве $_GET PHP хранит все параметры, переданные в текущем запросе через URL.
-  if (!empty($_GET['save'])) {
-    // Если есть параметр save, то выводим сообщение пользователю.
-    print('Спасибо, результаты сохранены.');
-  }
-  // Включаем содержимое файла form.php.
-  include('form.php');
-  // Завершаем работу скрипта.
-  exit();
+    if (!empty($_GET['save'])) {
+        print('Спасибо, результаты сохранены.');
+    }
+    include('form.php');
+    exit();
 }
-// Иначе, если запрос был методом POST, т.е. нужно проверить данные и сохранить их в БД.
 
-// Проверяем ошибки.
+// Проверяем ошибки
 $errors = FALSE;
-if (empty($_POST['fio'])) {
-  print('Заполните имя.<br/>');
-  $errors = TRUE;
+
+// Проверка ФИО
+if (empty($_POST['fullName'])) {
+    print('Заполните ФИО.<br/>');
+    $errors = TRUE;
+} elseif (strlen($_POST['fullName']) > 150) {
+    print('ФИО не должно превышать 150 символов.<br/>');
+    $errors = TRUE;
+} elseif (!preg_match('/^[а-яА-ЯёЁa-zA-Z\s-]+$/u', $_POST['fullName'])) {
+    print('ФИО должно содержать только буквы и пробелы.<br/>');
+    $errors = TRUE;
 }
 
-if (empty($_POST['year']) || !is_numeric($_POST['year']) || !preg_match('/^\d+$/', $_POST['year'])) {
-  print('Заполните год.<br/>');
-  $errors = TRUE;
+// Проверка email
+if (empty($_POST['email'])) {
+    print('Заполните email.<br/>');
+    $errors = TRUE;
+} elseif (!filter_var($_POST['email'], FILTER_VALIDATE_EMAIL)) {
+    print('Некорректный email.<br/>');
+    $errors = TRUE;
 }
 
+// Проверка даты рождения
+if (empty($_POST['birthdate'])) {
+    print('Заполните дату рождения.<br/>');
+    $errors = TRUE;
+}
 
-// *************
-// Тут необходимо проверить правильность заполнения всех остальных полей.
-// *************
+// Проверка пола
+if (empty($_POST['gender'])) {
+    print('Выберите пол.<br/>');
+    $errors = TRUE;
+} elseif (!in_array($_POST['gender'], ['male', 'female'])) {
+    print('Некорректное значение пола.<br/>');
+    $errors = TRUE;
+}
+
+// Проверка языков
+if (empty($_POST['languages'])) {
+    print('Выберите хотя бы один язык программирования.<br/>');
+    $errors = TRUE;
+} else {
+    $allowed_langs = ['pascal','c','cpp','javascript','php','python','java','haskell','clojure','prolog','scala','go'];
+    foreach ($_POST['languages'] as $lang) {
+        if (!in_array($lang, $allowed_langs)) {
+            print('Некорректный язык программирования.<br/>');
+            $errors = TRUE;
+            break;
+        }
+    }
+}
+
+// Проверка биографии
+if (empty($_POST['message'])) {
+    print('Заполните биографию.<br/>');
+    $errors = TRUE;
+} elseif (strlen($_POST['message']) < 4) {
+    print('Биография должна содержать минимум 4 символа.<br/>');
+    $errors = TRUE;
+}
+
+// Проверка чекбокса
+if (!isset($_POST['contract'])) {
+    print('Подтвердите ознакомление с контрактом.<br/>');
+    $errors = TRUE;
+}
 
 if ($errors) {
-  // При наличии ошибок завершаем работу скрипта.
-  exit();
+    exit();
 }
 
-// Сохранение в базу данных.
+// Сохранение в базу данных
+$user = 'u82278';
+$pass = '3700374';
+$db = new PDO('mysql:host=localhost;dbname=u82278', $user, $pass,
+    [PDO::ATTR_PERSISTENT => true, PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 
-$user = 'db'; // Заменить на ваш логин uXXXXX
-$pass = '123'; // Заменить на пароль
-$db = new PDO('mysql:host=localhost;dbname=test', $user, $pass,
-  [PDO::ATTR_PERSISTENT => true, PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]); // Заменить test на имя БД, совпадает с логином uXXXXX
-
-// Подготовленный запрос. Не именованные метки.
 try {
-  $stmt = $db->prepare("INSERT INTO application SET name = ?");
-  $stmt->execute([$_POST['fio']]);
-}
-catch(PDOException $e){
-  print('Error : ' . $e->getMessage());
-  exit();
+    // Начинаем транзакцию
+    $db->beginTransaction();
+    
+    // Вставляем основную информацию
+    $stmt = $db->prepare("INSERT INTO application (fio, phone, email, birth_date, gender, bio, contract) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    $stmt->execute([
+        $_POST['fullName'],
+        $_POST['phone'] ?? '',
+        $_POST['email'],
+        $_POST['birthdate'],
+        $_POST['gender'],
+        $_POST['message'],
+        1
+    ]);
+    
+    $app_id = $db->lastInsertId();
+    
+    // Соответствие языков и ID
+    $lang_ids = [
+        'pascal' => 1, 'c' => 2, 'cpp' => 3, 'javascript' => 4,
+        'php' => 5, 'python' => 6, 'java' => 7, 'haskell' => 8,
+        'clojure' => 9, 'prolog' => 10, 'scala' => 11, 'go' => 12
+    ];
+    
+    // Вставляем выбранные языки
+    $stmt = $db->prepare("INSERT INTO app_languages (app_id, lang_id) VALUES (?, ?)");
+    foreach ($_POST['languages'] as $lang) {
+        $stmt->execute([$app_id, $lang_ids[$lang]]);
+    }
+    
+    // Подтверждаем транзакцию
+    $db->commit();
+    
+} catch(PDOException $e) {
+    $db->rollBack();
+    print('Ошибка базы данных: ' . $e->getMessage());
+    exit();
 }
 
-//  stmt - это "дескриптор состояния".
- 
-//  Именованные метки.
-//$stmt = $db->prepare("INSERT INTO test (label,color) VALUES (:label,:color)");
-//$stmt -> execute(['label'=>'perfect', 'color'=>'green']);
- 
-//Еще вариант
-/*$stmt = $db->prepare("INSERT INTO users (firstname, lastname, email) VALUES (:firstname, :lastname, :email)");
-$stmt->bindParam(':firstname', $firstname);
-$stmt->bindParam(':lastname', $lastname);
-$stmt->bindParam(':email', $email);
-$firstname = "John";
-$lastname = "Smith";
-$email = "john@test.com";
-$stmt->execute();
-*/
-
-// Делаем перенаправление.
-// Если запись не сохраняется, но ошибок не видно, то можно закомментировать эту строку чтобы увидеть ошибку.
-// Если ошибок при этом не видно, то необходимо настроить параметр display_errors для PHP.
 header('Location: ?save=1');
+?>
