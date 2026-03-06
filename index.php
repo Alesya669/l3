@@ -11,28 +11,29 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
 
 // Проверяем ошибки
 $errors = FALSE;
+$error_messages = [];
 
 // Проверка ФИО
 if (empty($_POST['fullName'])) {
-    print('Заполните ФИО.<br/>');
+    $error_messages[] = 'Заполните ФИО.';
     $errors = TRUE;
 } elseif (strlen($_POST['fullName']) > 150) {
-    print('ФИО не должно превышать 150 символов.<br/>');
+    $error_messages[] = 'ФИО не должно превышать 150 символов.';
     $errors = TRUE;
 } elseif (!preg_match('/^[а-яА-ЯёЁa-zA-Z\s-]+$/u', $_POST['fullName'])) {
-    print('ФИО должно содержать только буквы, пробелы и дефисы.<br/>');
+    $error_messages[] = 'ФИО должно содержать только буквы, пробелы и дефисы.';
     $errors = TRUE;
 }
 
 // Проверка email
 if (empty($_POST['email'])) {
-    print('Заполните email.<br/>');
+    $error_messages[] = 'Заполните email.';
     $errors = TRUE;
 } elseif (!filter_var($_POST['email'], FILTER_VALIDATE_EMAIL)) {
-    print('Некорректный email.<br/>');
+    $error_messages[] = 'Некорректный email.';
     $errors = TRUE;
 } elseif (strlen($_POST['email']) > 100) {
-    print('Email не должен превышать 100 символов.<br/>');
+    $error_messages[] = 'Email не должен превышать 100 символов.';
     $errors = TRUE;
 }
 
@@ -43,47 +44,47 @@ if (!empty($_POST['phone'])) {
     $digitsOnly = preg_replace('/[\s\+]/', '', $phone);
     
     if (!preg_match('/^[\d\s\+]+$/', $phone)) {
-        print('Телефон может содержать только цифры, пробелы и символ +.<br/>');
+        $error_messages[] = 'Телефон может содержать только цифры, пробелы и символ +.';
         $errors = TRUE;
     } elseif (strlen($digitsOnly) != 10) {
-        print('Телефон должен содержать ровно 10 цифр.<br/>');
+        $error_messages[] = 'Телефон должен содержать ровно 10 цифр.';
         $errors = TRUE;
     } elseif (strlen($phone) > 20) {
-        print('Телефон не должен превышать 20 символов.<br/>');
+        $error_messages[] = 'Телефон не должен превышать 20 символов.';
         $errors = TRUE;
     }
 }
 
 // Проверка даты рождения
 if (empty($_POST['birthdate'])) {
-    print('Заполните дату рождения.<br/>');
+    $error_messages[] = 'Заполните дату рождения.';
     $errors = TRUE;
 } else {
     $date = DateTime::createFromFormat('Y-m-d', $_POST['birthdate']);
     if (!$date || $date->format('Y-m-d') !== $_POST['birthdate']) {
-        print('Некорректная дата рождения.<br/>');
+        $error_messages[] = 'Некорректная дата рождения.';
         $errors = TRUE;
     }
 }
 
 // Проверка пола
 if (empty($_POST['gender'])) {
-    print('Выберите пол.<br/>');
+    $error_messages[] = 'Выберите пол.';
     $errors = TRUE;
 } elseif (!in_array($_POST['gender'], ['male', 'female'])) {
-    print('Некорректное значение пола.<br/>');
+    $error_messages[] = 'Некорректное значение пола.';
     $errors = TRUE;
 }
 
 // Проверка языков
-if (empty($_POST['languages'])) {
-    print('Выберите хотя бы один язык программирования.<br/>');
+if (empty($_POST['languages']) || !is_array($_POST['languages'])) {
+    $error_messages[] = 'Выберите хотя бы один язык программирования.';
     $errors = TRUE;
 } else {
     $allowed_langs = ['pascal','c','cpp','javascript','php','python','java','haskell','clojure','prolog','scala','go'];
     foreach ($_POST['languages'] as $lang) {
         if (!in_array($lang, $allowed_langs)) {
-            print('Некорректный язык программирования.<br/>');
+            $error_messages[] = 'Некорректный язык программирования.';
             $errors = TRUE;
             break;
         }
@@ -92,23 +93,27 @@ if (empty($_POST['languages'])) {
 
 // Проверка биографии
 if (empty($_POST['message'])) {
-    print('Заполните биографию.<br/>');
+    $error_messages[] = 'Заполните биографию.';
     $errors = TRUE;
 } elseif (strlen($_POST['message']) < 4) {
-    print('Биография должна содержать минимум 4 символа.<br/>');
+    $error_messages[] = 'Биография должна содержать минимум 4 символа.';
     $errors = TRUE;
 } elseif (strlen($_POST['message']) > 65535) {
-    print('Биография слишком длинная.<br/>');
+    $error_messages[] = 'Биография слишком длинная.';
     $errors = TRUE;
 }
 
 // Проверка чекбокса
-if (!isset($_POST['contract'])) {
-    print('Подтвердите ознакомление с контрактом.<br/>');
+if (!isset($_POST['contract']) || $_POST['contract'] !== 'on') {
+    $error_messages[] = 'Подтвердите ознакомление с контрактом.';
     $errors = TRUE;
 }
 
 if ($errors) {
+    // Выводим все ошибки
+    foreach ($error_messages as $message) {
+        print($message . '<br/>');
+    }
     exit();
 }
 
@@ -131,7 +136,7 @@ try {
         $_POST['birthdate'],
         $_POST['gender'],
         $_POST['message'],
-        1
+        isset($_POST['contract']) && $_POST['contract'] === 'on' ? 1 : 0
     ]);
     
     $app_id = $db->lastInsertId();
@@ -154,11 +159,13 @@ try {
     // Подтверждаем транзакцию
     $db->commit();
     
+    // Успешное сохранение - редирект
+    header('Location: ?save=1');
+    exit();
+    
 } catch(PDOException $e) {
     $db->rollBack();
     print('Ошибка базы данных: ' . $e->getMessage());
     exit();
 }
-
-header('Location: ?save=1');
 ?>
