@@ -20,7 +20,7 @@ if (empty($_POST['fullName'])) {
     print('ФИО не должно превышать 150 символов.<br/>');
     $errors = TRUE;
 } elseif (!preg_match('/^[а-яА-ЯёЁa-zA-Z\s-]+$/u', $_POST['fullName'])) {
-    print('ФИО должно содержать только буквы и пробелы.<br/>');
+    print('ФИО должно содержать только буквы, пробелы и дефисы.<br/>');
     $errors = TRUE;
 }
 
@@ -31,12 +31,39 @@ if (empty($_POST['email'])) {
 } elseif (!filter_var($_POST['email'], FILTER_VALIDATE_EMAIL)) {
     print('Некорректный email.<br/>');
     $errors = TRUE;
+} elseif (strlen($_POST['email']) > 100) {
+    print('Email не должен превышать 100 символов.<br/>');
+    $errors = TRUE;
+}
+
+// Проверка телефона (необязательное поле)
+if (!empty($_POST['phone'])) {
+    $phone = $_POST['phone'];
+    // Убираем пробелы и плюсы для подсчета цифр
+    $digitsOnly = preg_replace('/[\s\+]/', '', $phone);
+    
+    if (!preg_match('/^[\d\s\+]+$/', $phone)) {
+        print('Телефон может содержать только цифры, пробелы и символ +.<br/>');
+        $errors = TRUE;
+    } elseif (strlen($digitsOnly) != 10) {
+        print('Телефон должен содержать ровно 10 цифр.<br/>');
+        $errors = TRUE;
+    } elseif (strlen($phone) > 20) {
+        print('Телефон не должен превышать 20 символов.<br/>');
+        $errors = TRUE;
+    }
 }
 
 // Проверка даты рождения
 if (empty($_POST['birthdate'])) {
     print('Заполните дату рождения.<br/>');
     $errors = TRUE;
+} else {
+    $date = DateTime::createFromFormat('Y-m-d', $_POST['birthdate']);
+    if (!$date || $date->format('Y-m-d') !== $_POST['birthdate']) {
+        print('Некорректная дата рождения.<br/>');
+        $errors = TRUE;
+    }
 }
 
 // Проверка пола
@@ -69,6 +96,9 @@ if (empty($_POST['message'])) {
     $errors = TRUE;
 } elseif (strlen($_POST['message']) < 4) {
     print('Биография должна содержать минимум 4 символа.<br/>');
+    $errors = TRUE;
+} elseif (strlen($_POST['message']) > 65535) {
+    print('Биография слишком длинная.<br/>');
     $errors = TRUE;
 }
 
@@ -106,17 +136,19 @@ try {
     
     $app_id = $db->lastInsertId();
     
-    // Соответствие языков и ID
-    $lang_ids = [
-        'pascal' => 1, 'c' => 2, 'cpp' => 3, 'javascript' => 4,
-        'php' => 5, 'python' => 6, 'java' => 7, 'haskell' => 8,
-        'clojure' => 9, 'prolog' => 10, 'scala' => 11, 'go' => 12
-    ];
+    // Получаем соответствие кодов языков и ID из базы
+    $lang_map = [];
+    $stmt = $db->query("SELECT id, code FROM languages");
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $lang_map[$row['code']] = $row['id'];
+    }
     
     // Вставляем выбранные языки
     $stmt = $db->prepare("INSERT INTO app_languages (app_id, lang_id) VALUES (?, ?)");
     foreach ($_POST['languages'] as $lang) {
-        $stmt->execute([$app_id, $lang_ids[$lang]]);
+        if (isset($lang_map[$lang])) {
+            $stmt->execute([$app_id, $lang_map[$lang]]);
+        }
     }
     
     // Подтверждаем транзакцию
