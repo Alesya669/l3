@@ -258,43 +258,70 @@ feedbackForm.addEventListener('submit', function(e) {
     // Сбор данных формы
     const formData = new FormData(feedbackForm);
 
-    // Добавляем множественный выбор языков
+    // Удаляем старый массив languages (если есть)
+    formData.delete('languages');
+
+    // Добавляем каждый выбранный язык отдельно как массив
     const languagesSelect = document.getElementById('languages');
     const selectedLanguages = Array.from(languagesSelect.selectedOptions).map(opt => opt.value);
-    formData.delete('languages'); // Удаляем, если есть
-    selectedLanguages.forEach((lang, index) => {
-        formData.append(`languages[${index}]`, lang);
+    selectedLanguages.forEach(lang => {
+        formData.append('languages[]', lang);
     });
 
-    // Добавляем чекбокс контракта
-    formData.append('contract', document.getElementById('contract').checked ? 'on' : 'off');
+    // Добавляем чекбокс контракта (если отмечен)
+    if (document.getElementById('contract').checked) {
+        formData.set('contract', 'on');
+    } else {
+        formData.delete('contract');
+    }
 
-    fetch('https://formcarry.com/s/dBg2a470fh0', {
+    // Отправляем данные
+    fetch('index.php', {
         method: 'POST',
-        headers: {
-            'Accept': 'application/json'
-        },
         body: formData
     })
     .then(response => {
-        if (response.ok) {
-            showMessage('Сообщение успешно отправлено!', 'success');
+        if (response.redirected) {
+            // Успешная отправка (редирект на ?save=1)
+            showMessage('Данные успешно сохранены!', 'success');
             feedbackForm.reset();
             clearFormData();
+
             // Скрываем ошибки
             document.querySelector('.gender-error').style.display = 'none';
             if (document.getElementById('languages-error')) {
                 document.getElementById('languages-error').style.display = 'none';
             }
+
+            // Через 2 секунды перезагружаем страницу, чтобы увидеть сообщение
+            setTimeout(() => {
+                window.location.href = response.url;
+            }, 2000);
+
         } else {
-            return response.json().then(err => {
-                throw new Error(err.error || 'Ошибка отправки формы');
+            // Возможно, вернулась страница с ошибками
+            return response.text().then(html => {
+                // Проверяем, содержит ли ответ сообщение об ошибке
+                if (html.includes('Заполните') || html.includes('Некорректный') ||
+                    html.includes('Выберите') || html.includes('Подтвердите') ||
+                    html.includes('Ошибка')) {
+
+                    // Извлекаем сообщение об ошибке
+                    const errorMatch = html.match(/(Заполните[^<]+|Некорректный[^<]+|Выберите[^<]+|Подтвердите[^<]+|Ошибка[^<]+)/);
+                    if (errorMatch) {
+                        throw new Error(errorMatch[0]);
+                    } else {
+                        throw new Error('Ошибка при отправке формы');
+                    }
+                } else {
+                    throw new Error('Неизвестная ошибка');
+                }
             });
         }
     })
     .catch(error => {
         console.error('Ошибка:', error);
-        showMessage('Произошла ошибка при отправке формы. Пожалуйста, попробуйте еще раз.', 'error');
+        showMessage(error.message, 'error');
     });
 });
 
